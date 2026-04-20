@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -29,20 +30,24 @@ func TestParseFile(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got, err := ParseFile(strings.NewReader(tt.input))
-		if tt.wantErr {
-			if err == nil {
-				t.Error("expected error got nil")
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseFile(strings.NewReader(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error got nil")
+					return
+				}
 			}
-		}
 
-		if !maps.Equal(got, tt.want) {
-			t.Errorf("want: %v, got: %v", tt.want, got)
-		}
+			if !maps.Equal(got, tt.want) {
+				t.Errorf("want: %v, got: %v", tt.want, got)
+			}
+		})
 	}
 }
 
 func TestFlatten(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		input        string
@@ -100,18 +105,21 @@ func TestFlatten(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		var raw map[string]any
-		if err := json.Unmarshal([]byte(tt.input), &raw); err != nil {
-			t.Fatalf("setup failed: %v", err)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			var raw map[string]any
+			if err := json.Unmarshal([]byte(tt.input), &raw); err != nil {
+				t.Fatalf("setup failed: %v", err)
+			}
 
-		result := make(Snapshot)
-		err := flatten(raw, "", result)
-		if err != nil {
-			t.Fatalf("flatten failed: %v", err)
-		}
-		if !maps.Equal(result, tt.wantSnapshot) {
-			t.Errorf("want: %v, got: %v", tt.wantSnapshot, result)
-		}
+			result := make(Snapshot)
+			err := flatten(raw, "", result)
+			if err != nil {
+				t.Fatalf("flatten failed: %v", err)
+			}
+			if !maps.Equal(result, tt.wantSnapshot) {
+				t.Errorf("want: %v, got: %v", tt.wantSnapshot, result)
+			}
+		})
+
 	}
 }
