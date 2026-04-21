@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"strings"
+	"path/filepath"
 )
 
 type Snapshot map[string]string
@@ -88,13 +88,17 @@ func Snapshots(fsys fs.FS, root string, exclude map[string]struct{}) (Snapshot, 
 			return nil
 		}
 
-		content, err := fs.ReadFile(fsys, path)
-
-		if err != nil {
-			return fmt.Errorf("failed reading file: %w", err)
+		if filepath.Ext(path) != ".json" {
+			return nil
 		}
 
-		ss, err := ParseFile(strings.NewReader(string(content)))
+		f, err := fsys.Open(path)
+		if err != nil {
+			return fmt.Errorf("open %s: %w", path, err)
+		}
+		defer f.Close()
+
+		ss, err := ParseFile(f)
 
 		if err != nil {
 			return fmt.Errorf("failed to parse content: %w", err)
