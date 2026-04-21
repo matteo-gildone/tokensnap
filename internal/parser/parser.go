@@ -4,9 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
+	"strings"
 )
 
 type Snapshot map[string]string
+
+type CollisionError struct {
+	Key   string
+	FileA string
+	FileB string
+}
+
+func (e *CollisionError) Error() string {
+	return fmt.Sprintf("%q present in %q and %q", e.Key, e.FileA, e.FileB)
+}
 
 // ParseFile reads the JSON file at path, flattens it according to the
 // W3C Design Token rules, and returns the result as a Snapshot.
@@ -56,4 +68,51 @@ func flatten(node map[string]any, prefix string, dst Snapshot) error {
 		}
 	}
 	return nil
+}
+
+func Snapshots(fsys fs.FS, root string, exclude map[string]struct{}) (Snapshot, error) {
+	snapshots := make(Snapshot)
+	visited := make(map[string]string)
+	err := fs.WalkDir(fsys, root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if _, ok := exclude[d.Name()]; ok {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		if !d.Type().IsRegular() {
+			return nil
+		}
+
+		content, err := fs.ReadFile(fsys, path)
+
+		if err != nil {
+			return fmt.Errorf("failed reading file: %w", err)
+		}
+
+		ss, err := ParseFile(strings.NewReader(string(content)))
+
+		if err != nil {
+			return fmt.Errorf("failed to parse content: %w", err)
+		}
+
+		for k, value := range ss {
+			if v, ok := visited[k]; ok {
+				return &CollisionError{
+					Key:   k,
+					FileA: v,
+					FileB: path,
+				}
+			}
+			snapshots[k] = value
+			visited[k] = path
+		}
+
+		return nil
+	})
+	return snapshots, err
 }

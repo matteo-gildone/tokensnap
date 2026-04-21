@@ -2,9 +2,11 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"maps"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func TestParseFile(t *testing.T) {
@@ -122,4 +124,102 @@ func TestFlatten(t *testing.T) {
 		})
 
 	}
+}
+
+func TestSnapshots(t *testing.T) {
+	excludeFoldersDefaults := toSet(".git", "vendor", "node_modules", "testdata", "script")
+	testFS := fstest.MapFS{
+		"base.json": &fstest.MapFile{
+			Data: []byte(`{
+  "base": {
+    "color": {
+      "$type": "color",
+      "$value":  "#0033cc"
+    },
+    "spacing": {
+      "$type": "dimension",
+      "$value": "16px"
+    }
+  }
+}
+`),
+		},
+	}
+
+	snapshots, err := Snapshots(testFS, ".", excludeFoldersDefaults)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !maps.Equal(snapshots, Snapshot{
+		"base.color":   "#0033cc",
+		"base.spacing": "16px",
+	}) {
+		t.Errorf("want: %v, got: %v", Snapshot{
+			"base.color":   "#0033cc",
+			"base.spacing": "16px",
+		}, snapshots)
+	}
+}
+
+func TestSnapshots_Error(t *testing.T) {
+	excludeFoldersDefaults := toSet(".git", "vendor", "node_modules", "testdata", "script")
+	testFS := fstest.MapFS{
+		"base.json": &fstest.MapFile{
+			Data: []byte(`{
+  "base": {
+    "color": {
+      "$type": "color",
+      "$value":  "#0033cc"
+    },
+    "spacing": {
+      "$type": "dimension",
+      "$value": "16px"
+    }
+  }
+}
+`),
+		},
+		"palette.json": &fstest.MapFile{
+			Data: []byte(`{
+  "base": {
+    "color": {
+      "$type": "color",
+      "$value":  "#0033cc"
+    }
+  }
+}
+`),
+		},
+	}
+
+	_, err := Snapshots(testFS, ".", excludeFoldersDefaults)
+	if err == nil {
+		t.Fatal("expected error got nil")
+	}
+
+	var colErr *CollisionError
+
+	if !errors.As(err, &colErr) {
+		t.Fatalf("expected CollisionError, got %T", err)
+	}
+	if colErr.Key != "base.color" {
+		t.Errorf("want: %v, got: %v", "base.color", colErr.Key)
+	}
+
+	if colErr.FileA != "base.json" {
+		t.Errorf("want: %v, got: %v", "base.json", colErr.FileA)
+	}
+
+	if colErr.FileB != "palette.json" {
+		t.Errorf("want: %v, got: %v", "palette.json", colErr.FileA)
+	}
+}
+
+func toSet(items ...string) map[string]struct{} {
+	set := make(map[string]struct{})
+	for _, d := range items {
+		set[d] = struct{}{}
+	}
+	return set
 }
