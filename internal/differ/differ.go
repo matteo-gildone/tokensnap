@@ -1,6 +1,9 @@
 package differ
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/matteo-gildone/tokensnap/internal/parser"
 )
 
@@ -53,12 +56,32 @@ func Compare(baseline, current parser.Snapshot) Diff {
 		}
 	}
 
+	slices.SortFunc(changes.Changes, func(a, b Change) int {
+		if a.Kind != b.Kind {
+			return kindOrder(a.Kind) - kindOrder(b.Kind)
+		}
+		return strings.Compare(a.Key, b.Key)
+	})
+
 	return changes
 }
 
 // IsClean returns true if the diff contains no changes.
 func (d Diff) IsClean() bool {
 	return len(d.Changes) == 0
+}
+
+func kindOrder(k ChangeKind) int {
+	switch k {
+	case Added:
+		return 0
+	case Changed:
+		return 1
+	case Removed:
+		return 2
+	default:
+		return 3
+	}
 }
 
 // Filter returns a new Diff containing only changes
