@@ -212,7 +212,7 @@ func TestSnapshots_Error(t *testing.T) {
 	}
 
 	if colErr.FileB != "palette.json" {
-		t.Errorf("want: %v, got: %v", "palette.json", colErr.FileA)
+		t.Errorf("want: %v, got: %v", "palette.json", colErr.FileB)
 	}
 }
 

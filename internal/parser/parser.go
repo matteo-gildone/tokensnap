@@ -70,6 +70,7 @@ func flatten(node map[string]any, prefix string, dst Snapshot) error {
 	return nil
 }
 
+// Snapshots crawl the file system looking for tokens file and return Snapshot map
 func Snapshots(fsys fs.FS, root string, exclude map[string]struct{}) (Snapshot, error) {
 	snapshots := make(Snapshot)
 	visited := make(map[string]string)
