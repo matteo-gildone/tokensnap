@@ -28,10 +28,6 @@ type Diff struct {
 	Changes []Change
 }
 
-// Filter specifies which ChangeKind values to include in results.
-// A nil or empty Filter means include all kinds.
-type Filter map[ChangeKind]bool
-
 // Compare returns a Diff describing what changed between baseline
 // and current. Changes are sorted: Added first, then Changed, then
 // Removed; within each group, sorted alphabetically by key.
@@ -83,12 +79,3 @@ func kindOrder(k ChangeKind) int {
 		return 3
 	}
 }
-
-// Filter returns a new Diff containing only changes
-// matching the given Filter. A nil filter returns a copy of d.
-//func (d Diff) Filter(f Filter) Diff {}
-
-// ParseFilter parses a comma-separated filter string (e.g.
-// "added,changed") into a Filter. Returns an error if any token is
-// not a recognised ChangeKind.
-//func ParseFilter(s string) (Filter, error) {}
