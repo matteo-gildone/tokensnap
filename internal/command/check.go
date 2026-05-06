@@ -12,7 +12,7 @@ import (
 	"github.com/matteo-gildone/tokensnap/internal/output"
 )
 
-var ErrDrift = errors.New("changes available")
+var ErrDrift = errors.New("drift detected")
 
 type checkConfig struct {
 	TokenDir      string
