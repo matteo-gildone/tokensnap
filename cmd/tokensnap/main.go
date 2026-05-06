@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 
 var commands = []*command.Command{
 	command.UpdateCmd,
+	command.CheckCmd,
 }
 
 func main() {
@@ -21,7 +23,11 @@ func main() {
 		if cmd.Name == os.Args[1] {
 			err := cmd.Run(os.Args[2:])
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%q failed: %v\n", cmd.Name, err)
+				if errors.Is(err, command.ErrDrift) {
+					fmt.Fprintf(os.Stderr, "%q: %v\n", cmd.Name, err)
+				} else {
+					fmt.Fprintf(os.Stderr, "%q failed: %v\n", cmd.Name, err)
+				}
 				os.Exit(1)
 			}
 			return

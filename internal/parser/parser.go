@@ -8,14 +8,19 @@ import (
 	"path/filepath"
 )
 
+// Snapshot is a flat map of dot-path token keys to their string values.
+// For example: {"color.primary": "#0057FF", "spacing.lg": "2rem"}.
 type Snapshot map[string]string
 
+// CollisionError is returned by Snapshots when the same token key
+// appears in more than one file.
 type CollisionError struct {
 	Key   string
 	FileA string
 	FileB string
 }
 
+// Error implements the error interface.
 func (e *CollisionError) Error() string {
 	return fmt.Sprintf("%q present in %q and %q", e.Key, e.FileA, e.FileB)
 }
@@ -70,7 +75,9 @@ func flatten(node map[string]any, prefix string, dst Snapshot) error {
 	return nil
 }
 
-// Snapshots crawl the file system looking for tokens file and return Snapshot map
+// Snapshots crawls fsys from root, skipping directories in exclude,
+// and returns a merged Snapshot of all .json token files found.
+// It returns a CollisionError if the same key appears in more than one file.
 func Snapshots(fsys fs.FS, root string, exclude map[string]struct{}) (Snapshot, error) {
 	snapshots := make(Snapshot)
 	visited := make(map[string]string)

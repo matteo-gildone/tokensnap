@@ -7,8 +7,10 @@ import (
 	"github.com/matteo-gildone/tokensnap/internal/parser"
 )
 
+// ChangeKind describes the nature of a token change.
 type ChangeKind string
 
+// Change kinds produced by Compare.
 const (
 	Added   ChangeKind = "added"
 	Removed ChangeKind = "removed"
@@ -67,6 +69,8 @@ func (d Diff) IsClean() bool {
 	return len(d.Changes) == 0
 }
 
+// kindOrder returns the sort priority for a ChangeKind.
+// Added sorts first, then Changed, then Removed.
 func kindOrder(k ChangeKind) int {
 	switch k {
 	case Added:

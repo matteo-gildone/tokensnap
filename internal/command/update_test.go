@@ -100,7 +100,8 @@ func TestExecUpdate_noExistingSnapshot(t *testing.T) {
 
 	mustWriteJSONTokens(t, tempTokensDir, `{"color":{"white":{"$value":"#fff"}}}`)
 
-	err := execUpdate(tempTokensDir, tempSnapshotDir, tempSnapshotFile, "", time.Now())
+	cfg := updateConfig{TokenDir: tempTokensDir, SnapshotDir: tempSnapshotDir, SnapshotFile: tempSnapshotFile, ExcludeFolder: ".git,vendor,node_modules"}
+	err := execUpdate(cfg, time.Now())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -122,8 +123,8 @@ func TestExecUpdate_rotatesExistingSnapshot(t *testing.T) {
 	mustWriteFile(t, tempSnapshotPath)
 
 	mustWriteJSONTokens(t, tempTokensDir, `{"color":{"white":{"$value":"#fff"}}}`)
-
-	err := execUpdate(tempTokensDir, tempSnapshotDir, tempSnapshotFile, "", now)
+	cfg := updateConfig{TokenDir: tempTokensDir, SnapshotDir: tempSnapshotDir, SnapshotFile: tempSnapshotFile, ExcludeFolder: ".git,vendor,node_modules"}
+	err := execUpdate(cfg, now)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -141,7 +142,8 @@ func TestExecUpdate_rotatesExistingSnapshot(t *testing.T) {
 
 func TestExecUpdate_missingTokensDir(t *testing.T) {
 	_, snapshotDir := mustSetupDirs(t)
-	err := execUpdate(filepath.Join(t.TempDir(), "nonexistent"), snapshotDir, "diff.json", "", time.Now())
+	cfg := updateConfig{TokenDir: filepath.Join(t.TempDir(), "nonexistent"), SnapshotDir: snapshotDir, SnapshotFile: "diff.json", ExcludeFolder: ".git,vendor,node_modules"}
+	err := execUpdate(cfg, time.Now())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -149,13 +151,15 @@ func TestExecUpdate_missingTokensDir(t *testing.T) {
 
 func TestExecUpdate_missingSnapshotDir(t *testing.T) {
 	tempTokensDir, _ := mustSetupDirs(t)
-	err := execUpdate(tempTokensDir, filepath.Join(t.TempDir(), "nonexistent"), "diff.json", "", time.Now())
+	cfg := updateConfig{TokenDir: tempTokensDir, SnapshotDir: filepath.Join(t.TempDir(), "nonexistent"), SnapshotFile: "diff.json", ExcludeFolder: ".git,vendor,node_modules"}
+
+	err := execUpdate(cfg, time.Now())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
 
-func mustReadSnapshot(t testing.TB, path string) parser.Snapshot {
+func mustReadSnapshot(t *testing.T, path string) parser.Snapshot {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -168,7 +172,7 @@ func mustReadSnapshot(t testing.TB, path string) parser.Snapshot {
 	return s
 }
 
-func mustWriteFile(t testing.TB, filePath string) {
+func mustWriteFile(t *testing.T, filePath string) {
 	t.Helper()
 
 	err := os.WriteFile(filePath, []byte("{}"), 0600)
@@ -177,7 +181,7 @@ func mustWriteFile(t testing.TB, filePath string) {
 	}
 }
 
-func mustWriteJSONTokens(t testing.TB, tempTokensDir, tokens string) {
+func mustWriteJSONTokens(t *testing.T, tempTokensDir, tokens string) {
 	t.Helper()
 
 	filePath := filepath.Join(tempTokensDir, "token.json")
@@ -188,7 +192,7 @@ func mustWriteJSONTokens(t testing.TB, tempTokensDir, tokens string) {
 	}
 }
 
-func mustSetupDirs(t testing.TB) (tokensDir, snapshotDir string) {
+func mustSetupDirs(t *testing.T) (tokensDir, snapshotDir string) {
 	tempDir := t.TempDir()
 	tempTokensDir := filepath.Join(tempDir, "tokens")
 	tempSnapshotDir := filepath.Join(tempDir, ".snapshot")
@@ -204,7 +208,7 @@ func mustSetupDirs(t testing.TB) (tokensDir, snapshotDir string) {
 	return tempTokensDir, tempSnapshotDir
 }
 
-func assertSnapshot(t testing.TB, path string, want parser.Snapshot) {
+func assertSnapshot(t *testing.T, path string, want parser.Snapshot) {
 	got := mustReadSnapshot(t, path)
 
 	if len(want) != len(got) {

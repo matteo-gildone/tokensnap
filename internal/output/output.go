@@ -20,6 +20,8 @@ type jsonReport struct {
 	Changes []jsonChange `json:"changes"`
 }
 
+// TextWriter writes a human-readable diff report to w. Changes are
+// grouped by kind (added, changed, removed) with a sigil prefix per line.
 func TextWriter(w io.Writer, d differ.Diff) error {
 	if d.IsClean() {
 		fmt.Fprint(w, "no drift detected\n")
@@ -37,6 +39,8 @@ func TextWriter(w io.Writer, d differ.Diff) error {
 	return nil
 }
 
+// JSONWriter writes a machine-readable diff report to w as JSON.
+// The output has the shape {"drift": bool, "changes": [...]}.
 func JSONWriter(w io.Writer, d differ.Diff) error {
 	changes := make([]jsonChange, 0)
 	for _, change := range d.Changes {
@@ -57,6 +61,8 @@ func JSONWriter(w io.Writer, d differ.Diff) error {
 	return err
 }
 
+// changeOutput formats a single Change as a human-readable string
+// with a sigil prefix: + for added, ~ for changed, - for removed.
 func changeOutput(change differ.Change) string {
 	switch change.Kind {
 	case differ.Added:

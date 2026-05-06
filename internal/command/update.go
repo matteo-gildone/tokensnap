@@ -2,7 +2,6 @@ package command
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -13,13 +12,24 @@ import (
 	"github.com/matteo-gildone/tokensnap/internal/parser"
 )
 
+type updateConfig struct {
+	TokenDir      string
+	SnapshotDir   string
+	SnapshotFile  string
+	ExcludeFolder string
+}
+
+func (u updateConfig) snapshotPath() string {
+	return filepath.Join(u.SnapshotDir, u.SnapshotFile)
+}
+
 var UpdateCmd = &Command{
 	Name:  "update",
-	Usage: usage(),
+	Usage: updateUsage(),
 	Run:   runUpdate,
 }
 
-func usage() string {
+func updateUsage() string {
 	return "tokensnap update [-tokens-dir] [-snapshot-file] [-snapshot-dir]"
 }
 
@@ -32,49 +42,37 @@ func runUpdate(args []string) error {
 	updateSubcommand.Parse(args)
 
 	if updateSubcommand.NArg() != 0 {
-		return fmt.Errorf("usage: %s", usage())
+		return fmt.Errorf("usage: %s", updateUsage())
 	}
 
-	return execUpdate(*tokensDir, *snapshotDir, *snapshotFile, *excludeFolder, time.Now())
+	cfg := updateConfig{TokenDir: *tokensDir, SnapshotDir: *snapshotDir, SnapshotFile: *snapshotFile, ExcludeFolder: *excludeFolder}
+	return execUpdate(cfg, time.Now())
 }
 
 // execUpdate generates a fresh snapshot from tokensDir, rotates any
 // existing snapshot file using now for the datestamp, and writes the
 // new snapshot to snapshotDir/snapshotFile.
-func execUpdate(tokensDir, snapshotDir, snapshotFile, exclude string, now time.Time) error {
-	excludeFoldersDefaults := []string{".git", "vendor", "node_modules", "testdata", "script"}
-	excludeFolders := make(map[string]struct{})
+func execUpdate(cfg updateConfig, now time.Time) error {
+	excludeFolders := buildExcludeSet(cfg.ExcludeFolder)
 
-	for _, d := range excludeFoldersDefaults {
-		excludeFolders[d] = struct{}{}
-	}
-
-	for _, folder := range strings.Split(exclude, ",") {
-		trimmed := strings.TrimSpace(folder)
-		if trimmed != "" {
-			excludeFolders[trimmed] = struct{}{}
-		}
-	}
-
-	snapshotPath := filepath.Join(snapshotDir, snapshotFile)
-
-	if snapshotExists(snapshotPath) {
-		err := os.Rename(snapshotPath, rotateName(snapshotPath, now))
+	if snapshotExists(cfg.snapshotPath()) {
+		err := os.Rename(cfg.snapshotPath(), rotateName(cfg.snapshotPath(), now))
 		if err != nil {
 			return fmt.Errorf("failed to rename file: %w", err)
 		}
 	}
 
-	fsys := os.DirFS(tokensDir)
+	fsys := os.DirFS(cfg.TokenDir)
 	snapshots, err := parseTokens(fsys, excludeFolders)
 	if err != nil {
 		return err
 	}
 
-	return saveSnapshot(snapshotPath, snapshots)
+	return saveSnapshot(cfg.snapshotPath(), snapshots)
 }
 
-// saveSnapshot save snapshot file
+// saveSnapshot atomically writes snapshots to snapshotPath using a
+// temporary file and rename to avoid partial writes.
 func saveSnapshot(snapshotPath string, snapshots parser.Snapshot) error {
 	data, err := json.Marshal(snapshots)
 	if err != nil {
@@ -107,12 +105,6 @@ func saveSnapshot(snapshotPath string, snapshots parser.Snapshot) error {
 
 	removeTemp = false
 	return os.Rename(tmp.Name(), snapshotPath)
-}
-
-// snapshotExists check if a snapshot file is present in the project
-func snapshotExists(snapshotFile string) bool {
-	_, err := os.Stat(snapshotFile)
-	return !errors.Is(err, os.ErrNotExist)
 }
 
 // rotateName returns the filename to use when rotating snapshotFile.
